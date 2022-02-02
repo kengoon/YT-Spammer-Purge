@@ -92,7 +92,6 @@ def rClickbinder(r):
                         func=rClicker, add='')
     except TclError:
         print(' - rClickbinder, something wrong')
-        pass
 
 ###################### Main Window ############################
 
@@ -140,7 +139,6 @@ def take_input_gui(mode, stripLettersNumbers=False, stripKeyboardSpecialChars=Fa
         try:
             if len(returnText) == 0:
                 warningMessage.itemconfig(state="normal")
-                pass
             elif len(returnText) > 0:
                 window.destroy()
         except NameError:

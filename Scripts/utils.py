@@ -38,13 +38,11 @@ def get_video_title(current, video_id):
 
     if results['items']:
       title = results["items"][0]["snippet"]["title"]
-      current.vidTitleDict[video_id] = title
-    elif (len(video_id) == 26 or len(video_id) == 36) and video_id[0:2] == "Ug":
+    elif len(video_id) in [26, 36] and video_id[:2] == "Ug":
       title = "[Community Post - No Title]"
-      current.vidTitleDict[video_id] = title
     else:
       title = "[Title Unavailable]"
-      current.vidTitleDict[video_id] = title
+    current.vidTitleDict[video_id] = title
   else:
     title = "[Title Unavailable]"
 
@@ -53,29 +51,25 @@ def get_video_title(current, video_id):
 
 ######################### Convert string to set of characters#########################
 def make_char_set(stringInput, stripLettersNumbers=False, stripKeyboardSpecialChars=False, stripPunctuation=False):
-    # Optional lists of characters to strip from string
-    translateDict = {}
-    charsToStrip = " "
-    if stripLettersNumbers == True:
-      numbersLettersChars = ("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-      charsToStrip += numbersLettersChars
-    if stripKeyboardSpecialChars == True:
-      keyboardSpecialChars = ("!@#$%^&*()_+-=[]\{\}|;':,./<>?`~")
-      charsToStrip += keyboardSpecialChars
-    if stripPunctuation == True:
-      punctuationChars = ("!?\".,;:'-/()")
-      charsToStrip += punctuationChars
-    
-    # Adds characters to dictionary to use with translate to remove these characters
-    for c in charsToStrip:
-      translateDict[ord(c)] = None
-    translateDict[ord("\ufe0f")] = None # Strips invisible varation selector for emojis
-    
-    # Removes charsToStrip from string
-    stringInput = stringInput.translate(translateDict)
-    listedInput = list(stringInput)
-    
-    return set(filter(None, listedInput))
+  charsToStrip = " "
+  if stripLettersNumbers == True:
+    numbersLettersChars = ("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    charsToStrip += numbersLettersChars
+  if stripKeyboardSpecialChars == True:
+    keyboardSpecialChars = ("!@#$%^&*()_+-=[]\{\}|;':,./<>?`~")
+    charsToStrip += keyboardSpecialChars
+  if stripPunctuation == True:
+    punctuationChars = ("!?\".,;:'-/()")
+    charsToStrip += punctuationChars
+
+  translateDict = {ord(c): None for c in charsToStrip}
+  translateDict[ord("\ufe0f")] = None # Strips invisible varation selector for emojis
+
+  # Removes charsToStrip from string
+  stringInput = stringInput.translate(translateDict)
+  listedInput = list(stringInput)
+
+  return set(filter(None, listedInput))
 
 ######################### Check List Against String #########################    
 # Checks if any items in a list are a substring of a string
@@ -83,10 +77,7 @@ def check_list_against_string(listInput, stringInput, caseSensitive=False):
   if caseSensitive == False:
     stringInput = stringInput.lower()
     listInput = [item.lower() for item in listInput]
-  if any(x in stringInput for x in listInput):
-    return True
-  else:
-    return False
+  return any(x in stringInput for x in listInput)
 
 
 ################### Process Comma-Separated String to List ####################
@@ -154,13 +145,13 @@ def choice(message="", bypass=False):
 
   # While loop until valid input
   valid = False
-  while valid == False:
+  while not valid:
     response = input("\n" + message + f" ({F.LIGHTCYAN_EX}y{S.R}/{F.LIGHTRED_EX}n{S.R}): ").strip()
-    if response == "Y" or response == "y":
+    if response in ["Y", "y"]:
       return True
-    elif response == "N" or response == "n":
+    elif response in ["N", "n"]:
       return False
-    elif response == "X" or response == "x":
+    elif response in ["X", "x"]:
       return None
     else:
       print("\nInvalid Input. Enter Y or N  --  Or enter X to return to main menu.")  
