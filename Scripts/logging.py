@@ -40,11 +40,17 @@ def print_comments(current, config, scanVideoID, comments, loggingEnabled, scanM
   hasDuplicates = False
 
   def print_and_write(value, writeValues, printValues):
-    if loggingEnabled == True and logMode == "rtf":
-      writeValues = writeValues + value['iString'] + value['cString'] + f"{str(value['authorID'])} | {make_rtf_compatible(str(value['nameAndText']))} \\line \n"
-    elif loggingEnabled == True and logMode == "plaintext":
-      writeValues = writeValues + value['iString'] + value['cString'] + f"{str(value['authorID'])} | {str(value['nameAndText'])}\n"
-    printValues = printValues + value['iString'] + value['cString'] + f"{str(value['nameAndText'])}\n"
+    if loggingEnabled == True:
+      if logMode == "rtf":
+        writeValues = (
+            writeValues + value['iString'] + value['cString'] +
+            f'{value["authorID"]} | {make_rtf_compatible(str(value["nameAndText"]))} \\line \n'
+        )
+      elif logMode == "plaintext":
+        writeValues = (writeValues + value['iString'] + value['cString'] +
+                       f'{value["authorID"]} | {value["nameAndText"]}\n')
+    printValues = (printValues + value['iString'] + value['cString'] +
+                   f'{value["nameAndText"]}\n')
     return writeValues, printValues
 
   print(f"{F.LIGHTMAGENTA_EX}============================ Match Samples: One comment per matched-comment author ============================{S.R}")
@@ -101,8 +107,6 @@ def print_comments(current, config, scanVideoID, comments, loggingEnabled, scanM
 # Uses comments.list YouTube API Request to get text and author of specific set of comments, based on comment ID
 def print_prepared_comments(current, scanVideoID, comments, j, loggingEnabled, scanMode, logMode):
 
-  # Prints author and comment text for each comment
-  i = 0 # Index when going through comments
   dataPreparedToWrite = ""
 
   for comment in comments:
@@ -115,10 +119,10 @@ def print_prepared_comments(current, scanVideoID, comments, j, loggingEnabled, s
     comment_id_local = comment
     videoID = metadata['videoID']
     matchReason = metadata['matchReason']
-   
+
     # Truncates very long comments, and removes excessive multiple lines
     if len(text) > 1500:
-      text = text[0:1500] + "[Comment Truncated by YT SPammer Purge]"
+      text = text[:1500] + "[Comment Truncated by YT SPammer Purge]"
     if text.count("\n") > 0:
       text = text.replace("\n", " ")
 
@@ -127,7 +131,7 @@ def print_prepared_comments(current, scanVideoID, comments, j, loggingEnabled, s
       add_sample(current, author_id_local, author, text, matchReason)
 
     # Build comment direct link
-    if scanMode == "communityPost" or scanMode == "recentCommunityPosts":
+    if scanMode in ["communityPost", "recentCommunityPosts"]:
       directLink = "https://www.youtube.com/post/" + videoID + "?lc=" + comment_id_local
     else:
       directLink = "https://www.youtube.com/watch?v=" + videoID + "&lc=" + comment_id_local
@@ -142,14 +146,14 @@ def print_prepared_comments(current, scanVideoID, comments, j, loggingEnabled, s
     print(f"     > Author Channel ID: {F.LIGHTBLUE_EX}" + author_id_local + f"{S.R}")
     print("=============================================================================================\n")
 
-    # If logging enabled, also prints to log file 
+    # If logging enabled, also prints to log file
     if loggingEnabled == True:
       # Only print video title info if searching entire channel
       if scanVideoID is None:  
-        if logMode == "rtf":
-         titleInfoLine = "     > Video: " + title + "\\line " + "\n"
-        elif logMode == "plaintext":
+        if logMode == "plaintext":
           titleInfoLine = "     > Video: " + title + "\n"
+        elif logMode == "rtf":
+          titleInfoLine = "     > Video: " + title + "\\line " + "\n"
       else:
         titleInfoLine = ""
 
@@ -183,11 +187,8 @@ def print_prepared_comments(current, scanVideoID, comments, j, loggingEnabled, s
           + "     > Author Channel ID: " + author_id_local + "\n"
           + "=============================================================================================\n\n\n"
         )
-      dataPreparedToWrite = dataPreparedToWrite + commentInfo
+      dataPreparedToWrite += commentInfo
 
-    # Appends comment ID to new list of comments so it's in the correct order going forward, as provided by API and presented to user
-    # Must use append here, not extend, or else it would add each character separately
-    i += 1
     j += 1
 
   if loggingEnabled == True:
@@ -224,7 +225,7 @@ def write_rtf(fileName, newText=None, firstWrite=False, fullWrite=False):
       except:
         print(f"{F.LIGHTRED_EX}Error:{S.R} Could not create desired directory for log files. Will place them in current directory.")
         fileName = os.path.basename(fileName)
-    while success == False:
+    while not success:
       try:
         attempts += 1
         with open(fileName, 'w', encoding="utf-8") as file:
@@ -249,11 +250,10 @@ def write_rtf(fileName, newText=None, firstWrite=False, fullWrite=False):
           if choice("Choice") == False:
             break
 
-  # If the string might have unicode, use unicode mode to convert for rtf
   else:
     # Writes to line just before last, to preserve required ending bracket in rtf file
-    # Slightly modified from: https://stackoverflow.com/a/50567967/17312053   
-    while success == False:
+    # Slightly modified from: https://stackoverflow.com/a/50567967/17312053
+    while not success:
       try:
         attempts += 1
         with open(fileName, 'r+', encoding="utf-8") as file:
@@ -298,7 +298,7 @@ def write_plaintext_log(fileName, newText=None, firstWrite=False, fullWrite=Fals
       except:
         print(f"{F.LIGHTRED_EX}Error:{S.R} Could not create desired directory for log files. Will place them in current directory.")
         fileName = os.path.basename(fileName)
-    while success == False:
+    while not success:
       try:
         attempts += 1
         with open(fileName, "w", encoding="utf-8") as file:
@@ -318,7 +318,7 @@ def write_plaintext_log(fileName, newText=None, firstWrite=False, fullWrite=Fals
             break 
 
   else:
-    while success == False:
+    while not success:
       try:
         attempts += 1
         with open(fileName, 'a', encoding="utf-8") as file:
@@ -359,7 +359,7 @@ def write_json_log(jsonSettingsDict, commentsDict, jsonDataDict=None):
     except:
       print(f"{F.LIGHTRED_EX}Error:{S.R} Could not create desired directory for log files. Will place them in current directory.")
       fileName = os.path.basename(fileName)
-  while success == False:
+  while not success:
     try:
       attempts += 1
       with open(fileName, "w", encoding=jsonEncoding) as file:
@@ -412,10 +412,11 @@ def get_extra_json_data(channelIDs, jsonSettingsDict):
       response = auth.YOUTUBE.channels().list(part="snippet,statistics", id=channelIdGroup, fields=fieldsToFetch).execute()
       if response['items']:
         for j in range(len(channelIdGroup)):
-          tempDict = {}
           channelID = response['items'][j]['id']
-          tempDict['PublishedAt'] = response['items'][j]['snippet']['publishedAt']
-          tempDict['Statistics'] = response['items'][j]['statistics']
+          tempDict = {
+              'PublishedAt': response['items'][j]['snippet']['publishedAt'],
+              'Statistics': response['items'][j]['statistics'],
+          }
           if getPicsBool == True:
             picURL = response['items'][j]['snippet']['thumbnails'][resolution]['url']
             pictureUrlsDict[channelID] = picURL
@@ -477,7 +478,7 @@ def download_profile_pictures(pictureUrlsDict, jsonSettingsDict):
   success = False
   print("\nFetching Profile Pictures...")
   # Download and save pictures
-  while success == False:
+  while not success:
     try:
       attempts += 1
       for channelID, pictureURL in pictureUrlsDict.items():
@@ -506,20 +507,20 @@ def add_sample(current, authorID, authorNameRaw, commentText, matchReason):
 
   # Make index number and string formatted version
   index = len(current.matchSamplesDict) + 1
-  iString = f"{str(index)}. ".ljust(4)
+  iString = f'{index}. '.ljust(4)
   authorNumComments = current.authorMatchCountDict[authorID]
-  cString = f"[x{str(authorNumComments)}] ".ljust(7)
+  cString = f'[x{authorNumComments}] '.ljust(7)
 
   # Left Justify Author Name and Comment Text
   if len(authorNameRaw) > 20:
-    authorName = authorNameRaw[0:17] + "..."
-    authorName = authorName[0:20].ljust(20)+": "
+    authorName = authorNameRaw[:17] + "..."
+    authorName = authorName[:20].ljust(20) + ": "
   else: 
-    authorName = authorNameRaw[0:20].ljust(20)+": "
+    authorName = authorNameRaw[:20].ljust(20) + ": "
 
   if len(commentText) > 82:
-    commentText = commentText[0:79] + "..."
-  commentText = commentText[0:82].ljust(82)
+    commentText = commentText[:79] + "..."
+  commentText = commentText[:82].ljust(82)
 
   # Add comment sample, author ID, name, and counter
   current.matchSamplesDict[authorID] = {'index':index, 'cString':cString, 'iString':iString, 'count':authorNumComments, 'authorID':authorID, 'authorName':authorNameRaw, 'nameAndText':authorName + commentText, 'matchReason':matchReason}
@@ -572,11 +573,11 @@ def prepare_logFile_settings(current, config, miscData, jsonSettingsDict, filter
         jsonSettingsDict['json_extra_data'] = True
       elif config['json_extra_data'] == False:
         jsonSettingsDict['json_extra_data'] = False
-      
+
       if config['json_profile_picture'] != False:
         jsonSettingsDict['json_profile_picture'] = config['json_profile_picture']
         jsonSettingsDict['logTime'] = current.logTime
-      elif config['json_profile_picture'] == False:
+      else:
         jsonSettingsDict['json_profile_picture'] = False
 
     except KeyError:
@@ -593,7 +594,7 @@ def prepare_logFile_settings(current, config, miscData, jsonSettingsDict, filter
       logPath = config['log_path']
     current.logFileName = os.path.normpath(logPath + "/" + fileName)
     print(f"Log file will be located at {F.YELLOW}" + current.logFileName + f"{S.R}\n")
-    if jsonLogging == True:
+    if jsonLogging:
       jsonLogFileName = os.path.normpath(logPath + "/" + jsonLogFileName)
       jsonSettingsDict['jsonLogFileName'] = jsonLogFileName
       print(f"JSON log file will be located at {F.YELLOW}" + jsonLogFileName + f"{S.R}\n")

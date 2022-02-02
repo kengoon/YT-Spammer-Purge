@@ -40,9 +40,8 @@ def get_comments(current, filtersDict, miscData, config, currentVideoDict, scanV
         fields=fieldsToFetch,
         textFormat="plainText"
       ).execute()
-    
-    # Get all comment threads across the whole channel
-    elif scanVideoID is None:
+
+    else:
       results = auth.YOUTUBE.commentThreads().list(
         part="snippet, replies",
         allThreadsRelatedToChannelId=auth.CURRENTUSER.id,
@@ -61,10 +60,10 @@ def get_comments(current, filtersDict, miscData, config, currentVideoDict, scanV
     utils.print_exception_during_scan(ex)
     current.errorOccurred = True
     return "Error", None
-    
+
   # Get token for next page. If no token, sets to 'End'
   RetrievedNextPageToken = results.get("nextPageToken", "End")
-  
+
   # After getting all comments threads for page, extracts data for each and stores matches in current.matchedCommentsDict
   # Also goes through each thread and executes get_replies() to get reply content and matches
   for item in results["items"]:
@@ -78,7 +77,6 @@ def get_comments(current, filtersDict, miscData, config, currentVideoDict, scanV
       limitedRepliesList = item["replies"]["comments"] # API will return a limited number of replies (~5), but to get all, need to make separate call
     except KeyError:
       limitedRepliesList = []
-      pass
     try: 
       parentAuthorChannelID = comment["snippet"]["authorChannelId"]["value"]
     except KeyError:
@@ -112,7 +110,7 @@ def get_comments(current, filtersDict, miscData, config, currentVideoDict, scanV
       allCommentsDict[parentAuthorChannelID] = [currentCommentDict]
     except TypeError:
       pass
-    
+
     if numReplies > 0 and len(limitedRepliesList) < numReplies:
       allCommentsDict = get_replies(current, filtersDict, miscData, config, parent_id, videoID, parentAuthorChannelID, videosToScan, allCommentsDict)
       if allCommentsDict == "Error":
@@ -144,8 +142,8 @@ def get_replies(current, filtersDict, miscData, config, parent_id, videoID, pare
   # Initialize some variables
   authorChannelName = None
   commentText = None
-  
-  if repliesList == None:
+
+  if repliesList is None:
     fieldsToFetch = "nextPageToken,items/snippet/authorChannelId/value,items/id,items/snippet/authorDisplayName,items/snippet/textDisplay"
     replies = []
     replyPageToken = None
@@ -181,14 +179,14 @@ def get_replies(current, filtersDict, miscData, config, parent_id, videoID, pare
 
   else:
     replies = repliesList
- 
+
   # Create list of author names in current thread, add into list - Only necessary when scanning comment text
   allThreadAuthorNames = []
 
   # Iterates through items in results
   # Need to be able to catch exceptions because sometimes the API will return a comment from non-existent / deleted channel
   # Need individual tries because not all are fetched for each mode
-  for reply in replies:  
+  for reply in replies:
     replyID = reply["id"]
     try:
       authorChannelID = reply["snippet"]["authorChannelId"]["value"]
@@ -198,11 +196,16 @@ def get_replies(current, filtersDict, miscData, config, parent_id, videoID, pare
     # Get author display name
     try:
       authorChannelName = reply["snippet"]["authorDisplayName"]
-      if filtersDict['filterMode'] == "Username" or filtersDict['filterMode'] == "AutoASCII" or filtersDict['filterMode'] == "AutoSmart" or filtersDict['filterMode'] == "NameAndText":
+      if filtersDict['filterMode'] in [
+          "Username",
+          "AutoASCII",
+          "AutoSmart",
+          "NameAndText",
+      ]:
         allThreadAuthorNames.append(authorChannelName)
     except KeyError:
       authorChannelName = "[Deleted Channel]"
-    
+
     # Comment Text
     try:
       commentText = reply["snippet"]["textDisplay"] # Remove Return carriages
@@ -228,7 +231,7 @@ def get_replies(current, filtersDict, miscData, config, parent_id, videoID, pare
       pass
 
     # Update latest stats
-    current.scannedRepliesCount += 1 
+    current.scannedRepliesCount += 1
     print_count_stats(current, miscData, videosToScan, final=False)
 
   return allCommentsDict
@@ -283,26 +286,23 @@ def check_duplicates(current, config, miscData, allCommentsDict, videoID):
     minimum_duplicates = 4
     print("\nError: Minimum_Duplicates config setting is invalid. Defaulting to 4.")
     input("\nPress Enter to continue...")
-  
+
   # Calculate number of authors to check, for progress
   authorCount = len(allCommentsDict)
-  scannedCount = 0
-
   # Run the actual duplicate checking
-  for authorID, authorCommentsList in allCommentsDict.items():
-    # Don't scan channel owner, current user, or any user in whitelist. Also don't bother if author is already in matchedCommentsDict
-    if auth.CURRENTUSER.id == authorID or miscData.channelOwnerID == authorID or authorID in miscData.resources['Whitelist']['WhitelistContents'] or any(authorID == value['authorID'] for key,value in current.matchedCommentsDict.items()):
-      scannedCount +=1
-      print(f" Analyzing For Duplicates: [ {scannedCount/authorCount*100:.2f}% ]   (Can be disabled & customized in config)".ljust(75, " "), end="\r")
-    else:
+  for scannedCount, (authorID, authorCommentsList) in enumerate(allCommentsDict.items(), start=1):
+    if (auth.CURRENTUSER.id != authorID and miscData.channelOwnerID != authorID
+        and
+        authorID not in miscData.resources['Whitelist']['WhitelistContents']
+        and all(authorID != value['authorID']
+                for key, value in current.matchedCommentsDict.items())):
       numDupes = 0
-      commentTextList = []
-      matchedIndexes = []
-      for commentDict in authorCommentsList:
-        commentTextList.append(commentDict['commentText'])
-
+      commentTextList = [
+          commentDict['commentText'] for commentDict in authorCommentsList
+      ]
       # Count number of comments that are similar to at least one other comment
       if len(commentTextList) > 1:
+        matchedIndexes = []
         for i,x in enumerate(commentTextList):
           for j in range(i+1,len(commentTextList)):
             y = commentTextList[j]
@@ -311,16 +311,15 @@ def check_duplicates(current, config, miscData, allCommentsDict, videoID):
               matchedIndexes.append(i)
               matchedIndexes.append(j)
               break
-        
+
         # Only count each comment once by counting number of unique indexes in matchedIndexes
-        uniqueMatches = len(set(matchedIndexes))    
+        uniqueMatches = len(set(matchedIndexes))
         if uniqueMatches >= minimum_duplicates:
           numDupes += uniqueMatches
       if numDupes > 0:
         for commentDict in authorCommentsList:
           add_spam(current, config, miscData, commentDict, videoID, matchReason="Duplicates")
-      scannedCount +=1
-      print(f" Analyzing For Duplicates: [ {scannedCount/authorCount*100:.2f}% ]   (Can be disabled & customized in config)".ljust(75, " "), end="\r")
+    print(f" Analyzing For Duplicates: [ {scannedCount/authorCount*100:.2f}% ]   (Can be disabled & customized in config)".ljust(75, " "), end="\r")
 
 
 ##########################################################################################
@@ -455,18 +454,19 @@ def check_against_filter(current, filtersDict, miscData, config, currentCommentD
 
       # Functions --------------------------------------------------------------
       def findOnlyObfuscated(regexExpression, originalWord, stringToSearch):
-        # Confusable thinks s and f look similar, have to compensate to avoid false positive
-        ignoredConfusablesConverter = {ord('f'):ord('s'),ord('s'):ord('f')} 
-        result = re.findall(regexExpression, stringToSearch.lower())  
-        if not result:
+        if not (result := re.findall(regexExpression, stringToSearch.lower())):
           return False
-        else:
-          for match in result:
-            lowerWord = originalWord.lower()
-            for char in compiledRegexDict['bufferChars']:
-              match = match.strip(char)
-            if match.lower() != lowerWord and match.lower() != lowerWord.translate(ignoredConfusablesConverter):
-              return True
+        # Confusable thinks s and f look similar, have to compensate to avoid false positive
+        ignoredConfusablesConverter = {ord('f'):ord('s'),ord('s'):ord('f')}
+        for match in result:
+          lowerWord = originalWord.lower()
+          for char in compiledRegexDict['bufferChars']:
+            match = match.strip(char)
+          if match.lower() not in [
+              lowerWord,
+              lowerWord.translate(ignoredConfusablesConverter),
+          ]:
+            return True
 
       def remove_unicode_categories(string):
         return "".join(char for char in string if unicodedata.category(char) not in smartFilter['unicodeCategoriesStrip'])
@@ -628,7 +628,7 @@ def delete_found_comments(commentsList, banChoice, deletionMode, recoveryMode=Fa
       if len(result) > 0:
         print("\nSomething may gone wrong when reporting the comments.")
         failedComments += commentIDs
-    elif deletionMode == "heldForReview" or deletionMode == "rejected" or deletionMode == "published":
+    elif deletionMode in ["heldForReview", "rejected", "published"]:
       try:
         response = auth.YOUTUBE.comments().setModerationStatus(id=commentIDs, moderationStatus=deletionMode, banAuthor=banChoice).execute()
         if len(response) > 0:
@@ -687,70 +687,66 @@ class CommentFoundError(Exception):
 
 # Takes in list of comment IDs and video IDs, and checks if comments still exist individually
 def check_deleted_comments(commentInput):
-    i = 0 # Count number of remaining comments
-    j = 1 # Count number of checked
-    total = len(commentInput)
-    unsuccessfulResults = []
-    commentList = []
+  i = 0 # Count number of remaining comments
+  j = 1 # Count number of checked
+  total = len(commentInput)
+  unsuccessfulResults = []
+  commentList = []
 
-    if type(commentInput) == list:
-      commentList = commentInput
-    elif type(commentInput) == dict:
-      commentList = list(commentInput.keys())
-      
-    # Wait 2 seconds so YouTube API has time to update comment status
-    print("Preparing...", end="\r")
-    time.sleep(1)
-    print("                               ")
-    print("    (Note: You can disable deletion success checking in the config file, to save time and API quota)\n")
-    for commentID in commentList:
-      try:
-        results = auth.YOUTUBE.comments().list(
-          part="snippet",
-          id=commentID,  
-          maxResults=1,
-          fields="items",
-          textFormat="plainText"
-        ).execute()
+  if type(commentInput) == list:
+    commentList = commentInput
+  elif type(commentInput) == dict:
+    commentList = list(commentInput.keys())
 
-        print("Verifying Deleted Comments: [" + str(j) + " / " + str(total) + "]", end="\r")
-        j += 1
+  # Wait 2 seconds so YouTube API has time to update comment status
+  print("Preparing...", end="\r")
+  time.sleep(1)
+  print("                               ")
+  print("    (Note: You can disable deletion success checking in the config file, to save time and API quota)\n")
+  for commentID in commentList:
+    try:
+      results = auth.YOUTUBE.comments().list(
+        part="snippet",
+        id=commentID,  
+        maxResults=1,
+        fields="items",
+        textFormat="plainText"
+      ).execute()
 
-        if results["items"]:  # Check if the items result is empty
-          raise CommentFoundError
+      print("Verifying Deleted Comments: [" + str(j) + " / " + str(total) + "]", end="\r")
+      j += 1
 
-      # If comment is found and possibly not deleted, print out video ID and comment ID
-      except CommentFoundError:
-        if type(commentInput) == dict:
-          print("Possible Issue Deleting Comment: " + str(commentID) + " |  Check Here: " + "https://www.youtube.com/watch?v=" + str(commentInput[commentID]['videoID']) + "&lc=" + str(commentID))
-        elif type(commentInput) == list:
-          print("Possible Issue Deleting Comment: " + str(commentID))
-        i += 1
-        unsuccessfulResults.append(results)
-        pass
-      except Exception:
-        if type(commentInput) == dict:
-          print("Unhandled Exception While Deleting Comment: " + str(commentID) + " |  Check Here: " + "https://www.youtube.com/watch?v=" + str(commentInput[commentID]['videoID']) + "&lc=" + str(commentID))
-        elif type(commentInput) == list:
-          print("Unhandled Exception While Deleting Comment: " + str(commentID))
-        i += 1
-        unsuccessfulResults.append(results)
-        pass
+      if results["items"]:  # Check if the items result is empty
+        raise CommentFoundError
 
-    if i == 0:
-      print("\n\nSuccess: All comments should be gone.")
-    elif i > 0:
-      print("\n\nWarning: " + str(i) + " comments may remain. Check links above or try running the program again. An error log file has been created: 'Deletion_Error_Log.txt'")
-      # Write error log
-      with open("Deletion_Error_Log.txt", "a", encoding="utf-8") as f:
-        f.write("----- YT Spammer Purge Error Log: Possible Issue Deleting Comments ------\n\n")
-        f.write(str(unsuccessfulResults))
-        f.write("\n\n")
-        f.close()
-    else:
-      print("\n\nSomething strange happened... The comments may or may have not been deleted.")
+    except CommentFoundError:
+      if type(commentInput) == dict:
+        print("Possible Issue Deleting Comment: " + str(commentID) + " |  Check Here: " + "https://www.youtube.com/watch?v=" + str(commentInput[commentID]['videoID']) + "&lc=" + str(commentID))
+      elif type(commentInput) == list:
+        print("Possible Issue Deleting Comment: " + str(commentID))
+      i += 1
+      unsuccessfulResults.append(results)
+    except Exception:
+      if type(commentInput) == dict:
+        print("Unhandled Exception While Deleting Comment: " + str(commentID) + " |  Check Here: " + "https://www.youtube.com/watch?v=" + str(commentInput[commentID]['videoID']) + "&lc=" + str(commentID))
+      elif type(commentInput) == list:
+        print("Unhandled Exception While Deleting Comment: " + str(commentID))
+      i += 1
+      unsuccessfulResults.append(results)
+  if i == 0:
+    print("\n\nSuccess: All comments should be gone.")
+  elif i > 0:
+    print("\n\nWarning: " + str(i) + " comments may remain. Check links above or try running the program again. An error log file has been created: 'Deletion_Error_Log.txt'")
+    # Write error log
+    with open("Deletion_Error_Log.txt", "a", encoding="utf-8") as f:
+      f.write("----- YT Spammer Purge Error Log: Possible Issue Deleting Comments ------\n\n")
+      f.write(str(unsuccessfulResults))
+      f.write("\n\n")
+      f.close()
+  else:
+    print("\n\nSomething strange happened... The comments may or may have not been deleted.")
 
-    return None
+  return None
 
 # Class for custom exception to throw if a comment is found to remain
 class CommentNotFoundError(Exception):

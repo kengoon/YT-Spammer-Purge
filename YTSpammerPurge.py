@@ -1022,10 +1022,8 @@ def main():
         allCommunityCommentsDict = get_community_comments(communityPostID=communityPostID, limit=limit, postScanProgressDict=postScanProgressDict, postText=postText)
         retrievedCount = len(allCommunityCommentsDict)
         print(f"\nRetrieved {retrievedCount} comments from post.\n")
-        scannedCount = 0
-
         # Analyze and store comments
-        for key, value in allCommunityCommentsDict.items():
+        for scannedCount, (key, value) in enumerate(allCommunityCommentsDict.items(), start=1):
           currentCommentDict = {
             'authorChannelID':value['authorChannelID'], 
             'parentAuthorChannelID':None, 
@@ -1040,14 +1038,13 @@ def main():
           except TypeError:
             pass
           operations.check_against_filter(current, filtersDict, miscData, config, currentCommentDict, videoID=communityPostID)
-          scannedCount += 1
-
           # Print Progress
           percent = ((scannedCount / retrievedCount) * 100)
-          progressStats = f"[ {str(scannedCount)} / {str(retrievedCount)} ]".ljust(15, " ") + f" ({percent:.2f}%)"
+          progressStats = (f'[ {scannedCount} / {retrievedCount} ]'.ljust(15, " ") +
+                           f" ({percent:.2f}%)")
           print(f'  {progressStats}  -  Analyzing Comments For Spam ', end='\r')
         print("                                                                                        ")
-        
+
         dupeCheckModes = utils.string_to_list(config['duplicate_check_modes'])
         if filtersDict['filterMode'].lower() in dupeCheckModes:
           operations.check_duplicates(current, config, miscData, authorKeyAllCommentsDict, communityPostID)
@@ -1080,14 +1077,11 @@ def main():
         nextPageToken, currentVideoDict = operations.get_comments(current, filtersDict, miscData, config, currentVideoDict, scanVideoID, videosToScan=videosToScan)
         if nextPageToken == "Error":
             return "Error"
-            
+
         if showTitle == True and len(videosToScan) > 0:
           # Prints video title, progress count, adds enough spaces to cover up previous stat print line
           offset = 95 - len(videoTitle)
-          if offset > 0:
-            spacesStr = " " * offset
-          else:
-            spacesStr = ""
+          spacesStr = " " * offset if offset > 0 else ""
           print(f"Scanning {i}/{len(videosToScan)}: " + videoTitle + spacesStr + "\n")
 
         operations.print_count_stats(current, miscData, videosToScan, final=False)  # Prints comment scan stats, updates on same line
@@ -1504,8 +1498,6 @@ if __name__ == "__main__":
   # with open("output_calls.txt", "w") as f:
   #   p = pstats.Stats("output.dat", stream=f)
   #   p.sort_stats("calls").print_stats()
-
-
 # -------------------------------------------------------------------------------------------------------------------------------------------------
 
   try:
@@ -1525,7 +1517,9 @@ if __name__ == "__main__":
           reason = str(hx.error_details[0]["reason"])
           utils.print_exception_reason(reason)
       print(f"\nAn {F.LIGHTRED_EX}'HttpError'{S.R} was raised. This is sometimes caused by a remote server error. See the error info above.")
-      print(f"If this keeps happening, consider posting a bug report on the GitHub issues page, and include the above error info.")
+      print(
+          'If this keeps happening, consider posting a bug report on the GitHub issues page, and include the above error info.'
+      )
       print(f"Short Link: {F.YELLOW}TJoe.io/bug-report{S.R}")
       input("\nPress Enter to Exit...")
     else:
@@ -1538,17 +1532,18 @@ if __name__ == "__main__":
     print("Error Message: " + str(ux))
     if "referenced before assignment" in str(ux):
       print(f"\n{F.LIGHTRED_EX}Error - Code: X-2{S.R} occurred. This is almost definitely {F.YELLOW}my fault and requires patching{S.R} (big bruh moment)")
-      print(f"Please post a bug report on the GitHub issues page, and include the above error info.")
+      print(
+          'Please post a bug report on the GitHub issues page, and include the above error info.'
+      )
       print(f"Short Link: {F.YELLOW}TJoe.io/bug-report{S.R}")
       print("    (In the mean time, try using a previous release of the program.)")
-      input("\n Press Enter to Exit...")
     else:
       traceback.print_exc()
       print("------------------------------------------------")
       print(f"\n{F.LIGHTRED_EX}Unknown Error - Code: Z-2{S.R} occurred. If this keeps happening,")
       print("consider posting a bug report on the GitHub issues page, and include the above error info.")
       print(f"Short Link: {F.YELLOW}TJoe.io/bug-report{S.R}")
-      input("\n Press Enter to Exit...")
+    input("\n Press Enter to Exit...")
   except KeyError as kx:
     traceback.print_exc()
     print("------------------------------------------------")

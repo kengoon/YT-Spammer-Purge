@@ -19,16 +19,15 @@ import pathlib
 
 # For scanning for individual chars
 def prepare_filter_mode_chars(scanMode, filterMode, config):
-  if filterMode == "Username":
-    whatToScanMsg = "Usernames"
-  elif filterMode == "Text":
-    whatToScanMsg = "Comment Text"
-  elif filterMode == "NameAndText":
+  if filterMode == "NameAndText":
     whatToScanMsg = "Usernames and Comment Text"
 
+  elif filterMode == "Text":
+    whatToScanMsg = "Comment Text"
+  elif filterMode == "Username":
+    whatToScanMsg = "Usernames"
   if config['characters_to_filter'] != "ask":
     print("Characters to filter obtained from config file.")
-    pass
   else:
     print(f"\nNext, you will input {F.YELLOW}ONLY{S.R} any special characters / emojis you want to search for in all {whatToScanMsg}. Do not include commas or spaces!")
     print("          Note: Letters, numbers, and basic punctuation will not be included for safety purposes, even if you enter them.")
@@ -38,8 +37,9 @@ def prepare_filter_mode_chars(scanMode, filterMode, config):
 
   confirm = False
   validConfigSetting = True
-  while confirm == False:
-    if validConfigSetting == True and config and config['characters_to_filter'] != "ask":
+  while not confirm:
+    if (validConfigSetting and config
+        and config['characters_to_filter'] != "ask"):
       inputChars = make_char_set(config['characters_to_filter'], stripLettersNumbers=True, stripKeyboardSpecialChars=False, stripPunctuation=True)
       bypass = True
     else:
@@ -57,28 +57,27 @@ def prepare_filter_mode_chars(scanMode, filterMode, config):
 
     print(f"     {whatToScanMsg} will be scanned for {F.MAGENTA}ANY{S.R} of the characters you entered in the previous window.")
     userChoice = choice("Begin Scanning? ", bypass)
-    if userChoice == True:
-      confirm = True
-    elif userChoice == False:
+    if userChoice == False:
       confirm = False
       validConfigSetting = False
-    elif userChoice == None:
+    elif userChoice is None:
       return "MainMenu", None
 
+    elif userChoice == True:
+      confirm = True
   return inputChars, None
 
 # For scanning for strings
 def prepare_filter_mode_strings(scanMode, filterMode, config):
-  if filterMode == "Username":
-    whatToScanMsg = "Usernames"
-  elif filterMode == "Text":
-    whatToScanMsg = "Comment Text"
-  elif filterMode == "NameAndText":
+  if filterMode == "NameAndText":
     whatToScanMsg = "Usernames and Comment Text"
 
+  elif filterMode == "Text":
+    whatToScanMsg = "Comment Text"
+  elif filterMode == "Username":
+    whatToScanMsg = "Usernames"
   if config['strings_to_filter'] != "ask":
     print("Strings to filter obtained from config file.")
-    pass
   else:
     print(f"\nPaste or type in a list of any {F.YELLOW}comma separated strings{S.R} you want to search for in {whatToScanMsg}. (Not case sensitive)")
     print("   >Note: If the text you paste includes special characters or emojis, they might not display correctly here, but it WILL still search them fine.")
@@ -86,8 +85,8 @@ def prepare_filter_mode_strings(scanMode, filterMode, config):
 
   validEntry = False
   validConfigSetting = True
-  while validEntry == False:
-    if validConfigSetting == True and config and config['strings_to_filter'] != "ask":
+  while not validEntry:
+    if validConfigSetting and config and config['strings_to_filter'] != "ask":
       inputString = config['strings_to_filter']
       bypass = True
     else:
@@ -103,31 +102,29 @@ def prepare_filter_mode_strings(scanMode, filterMode, config):
     else:
       validConfigSetting = False
 
-    if validEntry == True:
-      if config['strings_to_filter'] != "ask":
-        pass
-      else:
+    if validEntry:
+      if config['strings_to_filter'] == "ask":
         print(f"     {whatToScanMsg} will be scanned for {F.MAGENTA}ANY{S.R} of the following strings:")
         print(filterStringList)
       userChoice = choice("Begin scanning? ", bypass)
-      if userChoice == True:
-        validEntry = True
-      elif userChoice == False:
+      if userChoice == False:
         validEntry = False
-      elif userChoice == None:
+      elif userChoice is None:
         return "MainMenu", None
 
+      elif userChoice == True:
+        validEntry = True
   return filterStringList, None
 
 # For scanning for regex expression
 def prepare_filter_mode_regex(scanMode, filterMode, config):
-  if filterMode == "Username":
-    whatToScanMsg = "Usernames"
-  elif filterMode == "Text":
-    whatToScanMsg = "Comment Text"
-  elif filterMode == "NameAndText":
+  if filterMode == "NameAndText":
     whatToScanMsg = "Usernames and Comment Text"
 
+  elif filterMode == "Text":
+    whatToScanMsg = "Comment Text"
+  elif filterMode == "Username":
+    whatToScanMsg = "Usernames"
   if config['regex_to_filter'] != "ask":
     print("Regex expression obtained from config file.")
     validConfigSetting = True
@@ -137,8 +134,8 @@ def prepare_filter_mode_regex(scanMode, filterMode, config):
     validConfigSetting = False
   validExpression = False
 
-  while validExpression == False:
-    if validConfigSetting == True and config and config['regex_to_filter'] != "ask":
+  while not validExpression:
+    if validConfigSetting and config and config['regex_to_filter'] != "ask":
       inputtedExpression = config['regex_to_filter']
       bypass = True
     else:
@@ -161,7 +158,7 @@ def prepare_filter_mode_regex(scanMode, filterMode, config):
         elif userChoice == False:
           validExpression = False
           validConfigSetting = False
-        elif userChoice == None:
+        elif userChoice is None:
           return "MainMenu", None
     else:
       print(f"     {F.RED}Error{S.R}: The expression appears to be {F.RED}invalid{S.R}!")
@@ -175,7 +172,8 @@ def prepare_filter_mode_ID(scanMode, config):
   processResult = (False, None) #Tuple, first element is status of validity of channel ID, second element is channel ID
   validConfigSetting = True
   while processResult[0] == False:
-    if validConfigSetting == True and config and config['channel_ids_to_filter'] != "ask":
+    if (validConfigSetting and config
+        and config['channel_ids_to_filter'] != "ask"):
       inputtedSpammerChannelID = config['channel_ids_to_filter']
       bypass = True
     else:
@@ -197,11 +195,9 @@ def prepare_filter_mode_ID(scanMode, config):
     print(f"{B.RED}{F.WHITE} WARNING: {S.R} - You entered your own channel ID!")
     print(f"For safety purposes, this program always {F.YELLOW}ignores{S.R} your own comments.")
 
-    if config['channel_ids_to_filter'] != "ask":
-      pass
-    else:
+    if config['channel_ids_to_filter'] == "ask":
       input("\nPress Enter to continue...")
-  
+
   return inputtedSpammerChannelID, None
 
 # For Filter mode auto-ascii, user inputs nothing, program scans for non-ascii
@@ -218,8 +214,9 @@ def prepare_filter_mode_non_ascii(scanMode, config):
   # Get user input for mode selection, 
   confirmation = False
   validConfigSetting = True
-  while confirmation == False:
-    if validConfigSetting == True and config and config['autoascii_sensitivity'] != "ask":
+  while not confirmation:
+    if (validConfigSetting and config
+        and config['autoascii_sensitivity'] != "ask"):
       selection = config['autoascii_sensitivity']
       bypass = True
     else:
@@ -230,31 +227,31 @@ def prepare_filter_mode_non_ascii(scanMode, config):
     if selection == "1":
       print(f"Searches for {F.YELLOW}usernames with emojis, unicode symbols, and rare foreign characters{S.R} such as: ✔️ ☝️ 🡆 ▲ π Ɲ Œ")
       userChoice = choice("Choose this mode?", bypass)
-      if userChoice == True:
+      if userChoice is None:
+        return "MainMenu", None
+      elif userChoice == True:
         regexPattern = r"[^\x00-\xFF]"
         confirmation = True
-      elif userChoice == None:
-        return "MainMenu", None
     elif selection == "2":
       print(f"Searches for {F.YELLOW}usernames with anything EXCEPT{S.R} the following: {F.YELLOW}Letters, numbers, punctuation, and common special characters{S.R} you can type with your keyboard like: % * & () + ")
       userChoice = choice("Choose this mode?", bypass)
-      if userChoice == True:
+      if userChoice is None:
+        return "MainMenu", None
+      elif userChoice == True:
         regexPattern = r"[^\x00-\x7F]"
         confirmation = True
-      elif userChoice == None:
-        return "MainMenu", None
     elif selection == "3":
       print(f"Searches for {F.YELLOW}usernames with anything EXCEPT letters, numbers, and spaces{S.R} - {B.RED}{F.WHITE} EXTREMELY LIKELY to cause collateral damage!{S.R} Recommended to just use to manually gather list of spammer IDs, then use a different mode to delete.")
       userChoice = choice("Choose this mode?", bypass)
-      if userChoice == True:
+      if userChoice is None:
+        return "MainMenu", None
+      elif userChoice == True:
         regexPattern = r"[^a-zA-Z0-9 ]"
         confirmation = True
-      elif userChoice == None:
-        return "MainMenu", None
     else:
       print(f"Invalid input: {selection} - Must be 1, 2, or 3.")
       validConfigSetting = False
-    
+
   if selection == "1":
     autoModeName = "Allow Standard + Extended ASCII"
   elif selection == "2":
@@ -262,11 +259,10 @@ def prepare_filter_mode_non_ascii(scanMode, config):
   elif selection == "3":
     autoModeName = "NUKE Mode (┘°□°)┘≈ ┴──┴ - Allow only letters, numbers, and spaces"
 
-  if confirmation == True:
+  if confirmation:
     return regexPattern, autoModeName
-  else:
-    input("How did you get here? Something very strange went wrong. Press Enter to Exit...")
-    sys.exit()
+  input("How did you get here? Something very strange went wrong. Press Enter to Exit...")
+  sys.exit()
 
 # Auto smart mode
 def prepare_filter_mode_smart(scanMode, config, miscData, sensitive=False):

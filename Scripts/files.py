@@ -146,15 +146,14 @@ def check_for_update(currentVersion, updateReleaseChannel, silentCheck=False):
           print(f"This means you have been {F.YELLOW}rate limited by github.com{S.R}. Please try again in a while.\n")
         else:
           print(f"\n{B.RED}{F.WHITE}Error [U-4]:{S.R} Got an 403 (ratelimit_reached) when attempting to check for update.")
-        return None
-
+      elif silentCheck == False:
+        print(f"{B.RED}{F.WHITE}Error [U-3]:{S.R} Got non 200 status code (got: {response.status_code}) when attempting to check for update.\n")
+        print(
+            'If this keeps happening, you may want to report the issue here: https://github.com/ThioJoe/YT-Spammer-Purge/issues'
+        )
       else:
-        if silentCheck == False:
-          print(f"{B.RED}{F.WHITE}Error [U-3]:{S.R} Got non 200 status code (got: {response.status_code}) when attempting to check for update.\n")
-          print(f"If this keeps happening, you may want to report the issue here: https://github.com/ThioJoe/YT-Spammer-Purge/issues")
-        else:
-          print(f"{B.RED}{F.WHITE}Error [U-3]:{S.R} Got non 200 status code (got: {response.status_code}) when attempting to check for update.\n")
-        return None
+        print(f"{B.RED}{F.WHITE}Error [U-3]:{S.R} Got non 200 status code (got: {response.status_code}) when attempting to check for update.\n")
+      return None
 
     else:
       # assume 200 response (good)
@@ -180,11 +179,7 @@ def check_for_update(currentVersion, updateReleaseChannel, silentCheck=False):
     return None
 
   if parse_version(latestVersion) > parse_version(currentVersion):
-    if isBeta == True:
-      isUpdateAvailable = "beta"
-    else:
-      isUpdateAvailable = True
-
+    isUpdateAvailable = "beta" if isBeta == True else True
     if silentCheck == False:
       print("------------------------------------------------------------------------------------------")
       if isBeta == True:
@@ -197,7 +192,7 @@ def check_for_update(currentVersion, updateReleaseChannel, silentCheck=False):
       print("------------------------------------------------------------------------------------------")
       userChoice = choice("Update Now?")
       if userChoice == True:
-        if sys.platform == 'win32' or sys.platform == 'win64':
+        if sys.platform in ['win32', 'win64']:
           print(f"\n> {F.LIGHTCYAN_EX} Downloading Latest Version...{S.R}")
           if updateReleaseChannel == "stable":
             jsondata = json.dumps(response.json()["assets"])
@@ -258,7 +253,7 @@ def check_for_update(currentVersion, updateReleaseChannel, silentCheck=False):
                 print("The info above may help if it's a bug, which you can report here: https://github.com/ThioJoe/YT-Spammer-Purge/issues")
                 input("Press enter to Exit...")
                 sys.exit()
-            elif confirm == False or confirm == None:
+            elif confirm == False or confirm is None:
               return False
 
           # Download File
@@ -277,19 +272,17 @@ def check_for_update(currentVersion, updateReleaseChannel, silentCheck=False):
             os.remove(downloadFileName)
             print(f"\n> {F.RED} File did not fully download. Please try again later.")
             return False
-          elif total_size_in_bytes == 0:
+          else:
             print("Something is wrong with the download on the remote end. You should manually download latest version here:")
             print("https://github.com/ThioJoe/YT-Spammer-Purge/releases")
 
           # Verify hash
-          if ignoreHash == False:
-            if downloadHashSHA256 == hashlib.sha256(open(downloadFileName, 'rb').read()).hexdigest().lower():
-              pass
-            else:
-              os.remove(downloadFileName)
-              print(f"\n> {F.RED} Hash did not match. Please try again later.")
-              print("Or download the latest version manually from here: https://github.com/ThioJoe/YT-Spammer-Purge/releases")
-              return False
+          if (not ignoreHash and downloadHashSHA256 != hashlib.sha256(
+              open(downloadFileName, 'rb').read()).hexdigest().lower()):
+            os.remove(downloadFileName)
+            print(f"\n> {F.RED} Hash did not match. Please try again later.")
+            print("Or download the latest version manually from here: https://github.com/ThioJoe/YT-Spammer-Purge/releases")
+            return False
 
           # Print Success
           print(f"\n >  Download Completed: {F.LIGHTGREEN_EX}{downloadFileName}{S.R}")
@@ -305,7 +298,7 @@ def check_for_update(currentVersion, updateReleaseChannel, silentCheck=False):
           # We do this because we pull the .exe for windows, but maybe we could use os.system('git pull')? Because this is a GIT repo, unlike the windows version
           print(f"> {F.RED} Error:{S.R} You are using an unsupported OS for the autoupdater (macos/linux). \n This updater only supports Windows (right now). Feel free to get the files from github: https://github.com/ThioJoe/YT-Spammer-Purge")
           return False
-      elif userChoice == "False" or userChoice == None:
+      elif userChoice == "False" or userChoice is None:
         return False
     elif silentCheck == True:
       return isUpdateAvailable
@@ -327,13 +320,12 @@ def getRemoteFile(url, stream, silent=False, headers=None):
       response = requests.get(url, headers=headers)
     elif stream == True:
       response = requests.get(url, headers=headers, stream=True)
-    if response.status_code != 200:
-      if silent == False:
-        print("Error fetching remote file or resource: " + url)
-        print("Response Code: " + str(response.status_code))
-    else:
+    if response.status_code == 200:
       return response
 
+    if silent == False:
+      print("Error fetching remote file or resource: " + url)
+      print("Response Code: " + str(response.status_code))
   except Exception as e:
     if silent == False:
       print(e + "\n")
@@ -426,24 +418,18 @@ def check_update_config_file(newVersion, existingConfig, configFileName):
   backupDestinationFolder = os.path.join(RESOURCES_FOLDER_NAME, "User_Config_Backups")
   try:
     existingConfigVersion = int(existingConfig['config_version'])
-    if existingConfigVersion < newVersion:
-      configOutOfDate = True
-    else:
-      configOutOfDate = False
+    configOutOfDate = existingConfigVersion < newVersion
   except:
     configOutOfDate = True
 
-  if configOutOfDate == True:
-    print(f"\n{F.YELLOW} WARNING! {S.R} Your config file is {F.YELLOW}out of date{S.R}. ")
-    print(f"  > Program will {F.LIGHTGREEN_EX}update your config{S.R} now, {F.LIGHTGREEN_EX}back up the old file{S.R}, and {F.LIGHTGREEN_EX}copy your settings over{S.R})")
-    input("\nPress Enter to update config file...")
-  else:
+  if not configOutOfDate:
     return existingConfig
-    
+
+  print(f"\n{F.YELLOW} WARNING! {S.R} Your config file is {F.YELLOW}out of date{S.R}. ")
+  print(f"  > Program will {F.LIGHTGREEN_EX}update your config{S.R} now, {F.LIGHTGREEN_EX}back up the old file{S.R}, and {F.LIGHTGREEN_EX}copy your settings over{S.R})")
+  input("\nPress Enter to update config file...")
   # If user config file exists, keep path. Otherwise use default config file path
-  if os.path.exists(configFileName):
-    pass
-  else:
+  if not os.path.exists(configFileName):
     print("No existing config file found!")
     return False
 
@@ -481,22 +467,23 @@ def check_update_config_file(newVersion, existingConfig, configFileName):
     newDataList = []
     # Go through all new config lines
     for newLine in newConfigData:
-      if not newLine.strip().startswith('#') and not newLine.strip()=="" and "version" not in newLine:
+      if (not newLine.strip().startswith('#') and newLine.strip() != ""
+          and "version" not in newLine):
         for setting in existingConfig.keys():
           # Check if any old settings are in new config file
           if newLine.startswith(setting):
             for oldLine in oldConfigData:
-              if not oldLine.strip().startswith('#') and not oldLine.strip()=="" and "version" not in oldLine:
-                # Sets new line to be the old line
-                if oldLine.startswith(setting):
-                  newLine = oldLine
-                  break
+              if (not oldLine.strip().startswith('#') and oldLine.strip() != ""
+                  and "version" not in oldLine
+                  and oldLine.startswith(setting)):
+                newLine = oldLine
+                break
             break
       # The new config file writes itself again, but with the modified newLine's
       newDataList.append(newLine)
     success = False
     attempts = 0
-    while success == False:
+    while not success:
       try:
         attempts += 1
         with open(configFileName, "w", encoding="utf-8") as newFile:
@@ -522,12 +509,8 @@ def check_update_config_file(newVersion, existingConfig, configFileName):
 ############################# Get List of Files Matching Regex ##############################
 def list_config_files(relativePath=None):
   configNumExpression = r'(?<=spampurgeconfig)(\d+?)(?=\.ini)'
-  fileList = list()
-  if relativePath == None:
-    path = os.getcwd()
-  else:
-    path = os.path.abspath(relativePath)
-
+  fileList = []
+  path = os.getcwd() if relativePath is None else os.path.abspath(relativePath)
   for file in os.listdir(path):
     try:
       match = re.search(configNumExpression, file.lower()).group(0)
@@ -535,21 +518,18 @@ def list_config_files(relativePath=None):
       if file.lower() == "spampurgeconfig" + match + ".ini":
         fileList.append(file)
     except AttributeError as ax:
-      if "NoneType" in str(ax):
-        pass
-      else:
+      if "NoneType" not in str(ax):
         traceback.print_exc()
         print("--------------------------------------------------------------------------------")
         print("Something went wrong when getting list of config files. Check your regex.")
         input("\nPress Enter to exit...")
         sys.exit()
-    
+
   return fileList
 
 ############################# Ask to use Config or Which One ##############################
 # Applies if not using default config, and if not set to 'not use' config
 def choose_config_file(configDict, newestConfigVersion):
-  configNumExpression = r'(?<=spampurgeconfig)(\d+?)(?=\.ini)'
   configFileList = list_config_files()
   # If only one config file exists, prompt to use
   if len(configFileList) == 0:
@@ -557,11 +537,11 @@ def choose_config_file(configDict, newestConfigVersion):
       return load_config_file(forceDefault=True)
     else:
       return configDict
-  
+
   # If more than one config exists, list and ask which
   if len(configFileList) > 0:
     configChoiceDict = {}
-    print(f"\n=================== Found Multiple Config Files ===================")
+    print('\n=================== Found Multiple Config Files ===================')
     if os.path.exists("SpamPurgeConfig.ini"):
       print(f"\n{F.YELLOW}------------- Use primary config file or another one? -------------{S.R}")
       print(F"    {F.LIGHTCYAN_EX}Y:{S.R} Use primary config file")
@@ -569,15 +549,16 @@ def choose_config_file(configDict, newestConfigVersion):
       print(f"\n{F.YELLOW}------------------ Other Available Config Files -------------------{S.R}")
     else:
       print("\n Available Config Files:")
+    configNumExpression = r'(?<=spampurgeconfig)(\d+?)(?=\.ini)'
     # Print Available Configs, and add to dictionary  
     for file in configFileList:
       configNum = re.search(configNumExpression, file.lower()).group(0)
       configDescription = load_config_file(configFileName=file, skipConfigChoice=True)['this_config_description']
       configChoiceDict[configNum] = file
       print(f"    {F.LIGHTCYAN_EX}{configNum}:{S.R} {configDescription}")
-    
+
     valid = False
-    while valid == False:
+    while not valid:
       configChoice = input("\n Config Choice (Y/N or #): ")
       if configChoice.lower() == "y":
         return configDict
@@ -617,42 +598,39 @@ def copy_asset_file(fileName, destination):
   copyfile(assetFilesPath(fileName), os.path.abspath(destination))
 
 def ingest_list_file(relativeFilePath, keepCase = True):
-  if os.path.exists(relativeFilePath):
-    with open(relativeFilePath, 'r', encoding="utf-8") as listFile:
-      # If file doesn't end with newline, add one
-      listData = listFile.readlines()
-      lastline = listData[-1]
-      
-    with open(relativeFilePath, 'a', encoding="utf-8") as listFile:
-      if not lastline.endswith('\n'):
-        listFile.write('\n')
-
-    processedList = []
-    for line in listData:
-      line = line.strip()
-      if not line.startswith('#') and line !="":
-        if keepCase == False:
-          processedList.append(line.lower())
-        else: 
-          processedList.append(line)
-    return processedList
-  else:
+  if not os.path.exists(relativeFilePath):
     return None
+  with open(relativeFilePath, 'r', encoding="utf-8") as listFile:
+    # If file doesn't end with newline, add one
+    listData = listFile.readlines()
+    lastline = listData[-1]
+
+  with open(relativeFilePath, 'a', encoding="utf-8") as listFile:
+    if not lastline.endswith('\n'):
+      listFile.write('\n')
+
+  processedList = []
+  for line in listData:
+    line = line.strip()
+    if not line.startswith('#') and line !="":
+      if keepCase == False:
+        processedList.append(line.lower())
+      else: 
+        processedList.append(line)
+  return processedList
 
 def get_list_file_version(relativeFilePath):
-  if os.path.exists(relativeFilePath):
-    matchBetweenBrackets = '(?<=\[)(.*?)(?=\])' # Matches text between first set of two square brackets
-    with open(relativeFilePath, 'r', encoding="utf-8") as file:
-      for line in islice(file, 0, 5):
-        try:
-          matchItem = re.search(matchBetweenBrackets, line)
-          if matchItem:
-            listVersion = str(matchItem.group(0))
-        except AttributeError:
-          pass
-      return listVersion
-  else:
+  if not os.path.exists(relativeFilePath):
     return None
+  matchBetweenBrackets = '(?<=\[)(.*?)(?=\])' # Matches text between first set of two square brackets
+  with open(relativeFilePath, 'r', encoding="utf-8") as file:
+    for line in islice(file, 0, 5):
+      try:
+        if matchItem := re.search(matchBetweenBrackets, line):
+          listVersion = str(matchItem.group(0))
+      except AttributeError:
+        pass
+    return listVersion
 
 ############################# CONFIG FILE FUNCTIONS ##############################
 def create_config_file(updating=False, dontWarn=False, configFileName="SpamPurgeConfig.ini"):

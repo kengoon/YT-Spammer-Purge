@@ -104,12 +104,11 @@ def get_current_user(config):
 
   #Define fetch function so it can be re-used if issue and need to re-run it
   def fetch_user():
-    results = YOUTUBE.channels().list(
+    return YOUTUBE.channels().list(
       part="snippet", #Can also add "contentDetails" or "statistics"
       mine=True,
       fields="items/id,items/snippet/title"
     ).execute()
-    return results
   results = fetch_user()
 
   # Fetch the channel ID and title from the API response
